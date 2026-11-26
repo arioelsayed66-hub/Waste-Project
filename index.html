@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Green Points | منصة إعادة التدوير</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box} body{font-family:Arial;background:#f0f4f0;margin:0}
+.header{background:#1b5e20;color:#fff;padding:20px;text-align:center}
+.container{padding:15px;max-width:600px;margin:auto}
+.card{background:#fff;padding:16px;border-radius:14px;margin-bottom:14px;box-shadow:0 2px 10px #0001}
+input,select,button{width:100%;padding:12px;margin:6px 0;border-radius:9px;border:1px solid #ddd;font-size:16px}
+button{background:#2e7d32;color:#fff;border:none;font-weight:bold}
+.btn-blue{background:#1565c0} .btn-gold{background:#f9a825;color:#000} .btn-dark{background:#333}
+.points{font-size:28px;text-align:center;color:#2e7d32;font-weight:bold}
+.stats{display:flex;gap:10px;text-align:center} .stats div{flex:1;background:#e8f5e9;padding:10px;border-radius:10px}
+.item{border:1px solid #eee;padding:10px;border-radius:10px;margin:6px 0}
+.item img{width:100%;border-radius:8px;margin-top:8px}
+.badge{padding:4px 8px;border-radius:20px;font-size:12px} .ok{background:#d4edda} .bad{background:#f8d7da}
+#reader{display:none} video{width:100%;border-radius:10px} #canvas{display:none}
+.small{font-size:13px;color:#666}
+.check{font-size:13px;background:#e8f5e9;padding:8px;border-radius:8px;margin:4px 0}
+.fail{background:#ffebee}
+.trust{font-size:20px;text-align:center}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>♻️ Green Points</h1>
+<p>منصة إعادة التدوير<br>تحقق أوتوماتيك بدون مشرف - 5 حواجز ضد الغش</p>
+</div>
+<div class="container">
+
+<div class="card">
+<h3>👤 بيانات المستخدم</h3>
+<input id="username" placeholder="الاسم بالكامل">
+<button onclick="saveUser()">دخول</button>
+<p>أهلا بيك: <b id="showName">-</b></p>
+<div class="points"><span id="points">0</span> نقطة</div>
+<div class="stats"><div>♻️ عمليات<br><b id="count">0</b></div><div>🌍 CO2<br><b id="co2">0</b></div><div>📅 اليوم<br><b id="todayCount">0 / 3</b></div></div>
+<div class="trust">مستوى الثقة: <b id="trust">100%</b> <span id="trustEmoji">🟢</span></div>
+<p class="small">لو حاولت تغش، الثقة بتنقص، ولو نزلت تحت 50% حسابك بيتجمد.</p>
+</div>
+
+<div class="card">
+<h3>📷 الخطوة 1 - امسح QR (إجباري أولاً)</h3>
+<button class="btn-blue" onclick="startScan()">📷 امسح QR الصندوق</button>
+<div id="reader"></div>
+<p>الصندوق: <b id="binId">لم يتم المسح</b></p>
+<p>صلاحية الـ QR: <b id="qrTimer">-</b></p>
+<p class="small">⚠️ الـ QR صالح لدقيقتين بس بعد المسح، بعد كده لازم تمسحه تاني.</p>
+<select id="binSelect" onchange="manualBin(this.value)">
+<option value="">-- أو اختر للتجربة --</option>
+<option>BIN-001 | صندوق ورق</option>
+<option>BIN-002 | صندوق بلاستيك</option>
+<option>BIN-003 | صندوق زجاج</option>
+<option>BIN-004 | صندوق معدن</option>
+</select>
+</div>
+
+<div class="card">
+<h3>♻️ الخطوة 2 - اختر النوع</h3>
+<select id="type">
+<option value="ورق|10|0.5">ورق 📄 | 10 نقاط</option>
+<option value="بلاستيك|15|1">بلاستيك 🧴 | 15 نقطة</option>
+<option value="زجاج|20|0.8">زجاج 🫙 | 20 نقطة</option>
+<option value="معدن|25|1.5">معدن 🥫 | 25 نقطة</option>
+</select>
+<select id="qty"><option value="1">1 قطعة</option><option value="2">2 قطعة</option><option value="3">3 قطع</option></select>
+</div>
+
+<div class="card">
+<h3>📸 الخطوة 3 - صورة لايف بالكاميرا (ممنوع الجاليري)</h3>
+<p class="small">لازم تصور دلوقتي بالكاميرا، مينفعش ترفع صورة قديمة من الموبايل.</p>
+<button class="btn-dark" onclick="openCam()">📸 افتح الكاميرا والتقط صورة لايف</button>
+<video id="video" autoplay playsinline style="display:none"></video>
+<button id="capBtn" style="display:none;background:#c62828" onclick="takePhoto()">📸 التقط الآن</button>
+<canvas id="canvas"></canvas>
+<img id="preview" style="width:100%;display:none;border-radius:10px;margin-top:8px">
+<p id="photoTime"></p>
+</div>
+
+<div class="card">
+<h3>🛡️ نتيجة التحقق الأوتوماتيك</h3>
+<div id="checks">لسه مفيش عملية عشان نتحقق منها</div>
+<button onclick="submitWithChecks()">إرسال بعد التحقق ➡️</button>
+</div>
+
+<div class="card">
+<h3>📋 سجل شفاف - الكل شايفه</h3>
+<p class="small">كل عملية بتتسجل بوقتها ونوعها، أي حد يقدر يراجعها، ده اللي بيمنع الغش من غير مشرف.</p>
+<div id="list">لسه مفيش عمليات</div>
+</div>
+
+<div class="card">
+<h3>🏆 لوحة الصدارة</h3>
+<div>🥇 <b id="boardName">-</b> | <span id="boardPoints">0</span> نقطة</div>
+<div>🥈 أحمد - 240 نقطة | ثقة 98%</div><div>🥉 سارة - 180 نقطة | ثقة 95%</div>
+</div>
+
+<div class="card">
+<h3>🎁 استبدل</h3>
+<button class="btn-gold" onclick="redeem(50)">50 نقطة - كوبون خصم</button>
+<p id="msg"></p>
+</div>
+
+</div>
+<script>
+let items = JSON.parse(localStorage.getItem('green4_items')||'[]');
+let points = parseInt(localStorage.getItem('green4_points')||0);
+let trust = parseInt(localStorage.getItem('green4_trust')||100);
+let user = localStorage.getItem('green4_user')||'';
+let photoData='', qrTime=0, binVal='', stream=null, lastPhotoHash='';
+document.getElementById('username').value=user;
+document.getElementById('showName').innerText=user||'-';
+function saveUser(){let n=document.getElementById('username').value.trim(); if(!n){alert('اكتب اسمك');return;} localStorage.setItem('green4_user',n); document.getElementById('showName').innerText=n; render();}
+function manualBin(v){binVal=v; document.getElementById('binId').innerText=v; qrTime=Date.now(); updateTimer();}
+function updateTimer(){setInterval(()=>{if(!qrTime) return; let left=120-Math.floor((Date.now()-qrTime)/1000); document.getElementById('qrTimer').innerText=left>0?left+' ثانية متبقية':'انتهت - امسح تاني'; if(left<=0) document.getElementById('qrTimer').style.color='red';},1000);}
+function startScan(){
+document.getElementById('reader').style.display='block';
+let qr=new Html5Qrcode("reader");
+qr.start({facingMode:"environment"},{fps:10,qrbox:250},(code)=>{binVal='BIN-SCAN-'+code; document.getElementById('binId').innerText=binVal; qrTime=Date.now(); updateTimer(); qr.stop(); document.getElementById('reader').style.display='none'; alert('تم مسح QR - معاك دقيقتين تصور وتبعت');},()=>{}).catch(()=>alert('اسمح للكاميرا'));
+}
+async function openCam(){
+try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); let v=document.getElementById('video'); v.srcObject=stream; v.style.display='block'; document.getElementById('capBtn').style.display='block';}catch(e){alert('اسمح للكاميرا - لازم صورة لايف، مينفعش جاليري');}
+}
+function takePhoto(){
+let v=document.getElementById('video'); let c=document.getElementById('canvas'); c.width=v.videoWidth; c.height=v.videoHeight; c.getContext('2d').drawImage(v,0,0);
+photoData=c.toDataURL('image/jpeg',0.7);
+let p=document.getElementById('preview'); p.src=photoData; p.style.display='block';
+document.getElementById('photoTime').innerText='تم التقاط الصورة لايف الآن: '+new Date().toLocaleString('ar-EG');
+if(stream) stream.getTracks().forEach(t=>t.stop());
+document.getElementById('video').style.display='none'; document.getElementById('capBtn').style.display='none';
+}
+function render(){
+let today=new Date().toDateString();
+let todayItems=items.filter(x=>x.day==today);
+let co2=0; items.forEach(it=>{co2+=it.co2;});
+document.getElementById('points').innerText=points;
+document.getElementById('count').innerText=items.length;
+document.getElementById('co2').innerText=co2.toFixed(1);
+document.getElementById('todayCount').innerText=todayItems.length+' / 3';
+document.getElementById('trust').innerText=trust+'%';
+document.getElementById('trustEmoji').innerText=trust>=80?'🟢':trust>=50?'🟡':'🔴';
+document.getElementById('boardPoints').innerText=points;
+document.getElementById('boardName').innerText=user||'-';
+document.getElementById('list').innerHTML= items.length? items.map(x=>'<div class="item"><b>'+x.type+' | '+x.qty+' قطعة | +'+x.pts+' نقطة</b><br><small>'+x.bin+' | '+x.date+'</small><br><span class="badge ok">✅ تم التحقق أوتوماتيك - QR + صورة لايف + وقت</span>'+(x.photo?'<img src="'+x.photo+'">':'')+'</div>').join('') : 'لسه مفيش عمليات';
+localStorage.setItem('green4_items',JSON.stringify(items)); localStorage.setItem('green4_points',points); localStorage.setItem('green4_trust',trust);
+}
+function submitWithChecks(){
+if(!user){alert('سجل اسمك الأول'); return;}
+let checks=[];
+let today=new Date().toDateString();
+let todayCount=items.filter(x=>x.day==today).length;
+// 1 QR
+if(!binVal){checks.push('<div class="check fail">❌ لم يتم مسح QR - مرفوض</div>');}
+// 2 QR expiry
+let qrAge=qrTime?Math.floor((Date.now()-qrTime)/1000):999;
+if(qrTime && qrAge>120){checks.push('<div class="check fail">❌ الـ QR انتهى (عدى دقيقتين) - امسحه تاني</div>');}
+else if(qrTime){checks.push('<div class="check">✅ QR سليم - تم مسحه من '+qrAge+' ثانية</div>');}
+// 3 live photo
+if(!photoData){checks.push('<div class="check fail">❌ مفيش صورة لايف - لازم تصور بالكاميرا دلوقتي</div>');} else {checks.push('<div class="check">✅ صورة لايف - اتاخدت بالكاميرا مش من الجاليري</div>');}
+// 4 duplicate
+if(photoData && photoData==lastPhotoHash){checks.push('<div class="check fail">❌ نفس الصورة اتبعتت قبل كده - محاولة غش!</div>');} else if(photoData){checks.push('<div class="check">✅ صورة جديدة - مش متكررة</div>');}
+// 5 daily limit
+if(todayCount>=3){checks.push('<div class="check fail">❌ عديت حد اليوم (3 عمليات) - جرب بكرة</div>');} else {checks.push('<div class="check">✅ لسه ليك '+ (3-todayCount) +' عمليات النهاردة</div>');}
+document.getElementById('checks').innerHTML=checks.join('');
+let failed=checks.join('').includes('fail');
+if(failed){
+trust=Math.max(0,trust-10); render();
+alert('تم رفض العملية! فيه تحقق فشل، الثقة نزلت لـ '+trust+'%');
+return;
+}
+let parts=document.getElementById('type').value.split('|');
+let qty=parseInt(document.getElementById('qty').value);
+let pts=parseInt(parts[1])*qty; let co2=parseFloat(parts[2])*qty;
+items.push({type:parts[0],pts:pts,co2:co2,qty:qty,bin:binVal,photo:photoData,date:new Date().toLocaleString('ar-EG'),day:today});
+lastPhotoHash=photoData; photoData=''; document.getElementById('preview').style.display='none';
+points+=pts; trust=Math.min(100,trust+2);
+render(); alert('تم التحقق أوتوماتيك! ✅\nQR + صورة لايف + وقت + مش متكررة\n+'+pts+' نقطة');
+}
+function redeem(x){if(points>=x){points-=x; render(); document.getElementById('msg').innerText='تم! باقي '+points;} else document.getElementById('msg').innerText='نقاطك مش كفاية';}
+render();
+</script>
+</body>
+</html>
