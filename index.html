@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waste Recycling Platform</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+body{font-family:Arial;background:#e8f5e9;margin:0;padding:15px}
+h1{text-align:center;color:#2e7d32;font-size:22px}
+.card{background:#fff;padding:15px;border-radius:12px;margin-bottom:15px;box-shadow:0 2px 8px #0001}
+input,select,button{width:100%;padding:11px;margin:5px 0;border-radius:8px;border:1px solid #ccc;font-size:16px;box-sizing:border-box}
+button{background:#2e7d32;color:#fff;border:none;font-weight:bold}
+.scan{background:#1565c0}
+.item{background:#f1f8e9;padding:10px;border-radius:8px;margin:5px 0}
+.points{font-size:22px;text-align:center;color:#2e7d32;font-weight:bold}
+#reader{width:100%;display:none}
+</style>
+</head>
+<body>
+<h1>♻️ منصة إعادة تدوير المخلفات</h1>
+<div class="card">
+<h3>👤 بياناتك</h3>
+<input id="username" placeholder="اكتب اسمك">
+<button onclick="saveUser()">حفظ اسمي</button>
+<p>أهلا بيك: <b id="showName">-</b></p>
+<div class="points">نقاطك: <span id="points">0</span> نقطة</div>
+</div>
+<div class="card">
+<h3>📷 امسح باركود المخلف</h3>
+<button class="scan" onclick="startScan()">افتح الكاميرا وامسح الباركود</button>
+<div id="reader"></div>
+<p id="scanResult"></p>
+</div>
+<div class="card">
+<h3>إضافة مخلفات</h3>
+<input id="name" placeholder="اسم المخلف - هيتملي لوحده من الباركود">
+<select id="type"><option>بلاستيك</option><option>ورق</option><option>زجاج</option><option>معدن</option><option>عضوي</option></select>
+<input id="weight" type="number" placeholder="الوزن بالكيلو">
+<button onclick="addItem()">إضافة + احسب النقاط</button>
+</div>
+<div class="card">
+<h3>المخلفات بتاعتك</h3>
+<div id="list">لسه مفيش حاجة</div>
+<p><b>إجمالي الوزن:</b> <span id="total">0</span> كجم</p>
+</div>
+<div class="card">
+<h3>🎁 استبدال النقاط</h3>
+<button onclick="redeem(50)">50 نقطة - كوبون خصم</button>
+<button onclick="redeem(100)">100 نقطة - هدية</button>
+<button onclick="redeem(200)">200 نقطة - جائزة كبيرة</button>
+<p id="msg"></p>
+</div>
+<script>
+let points = parseInt(localStorage.getItem('points')||0);
+let total = parseFloat(localStorage.getItem('total')||0);
+let items = JSON.parse(localStorage.getItem('items')||'[]');
+let user = localStorage.getItem('username')||'';
+document.getElementById('username').value=user;
+document.getElementById('showName').innerText=user||'-';
+function render(){
+document.getElementById('points').innerText=points;
+document.getElementById('total').innerText=total;
+document.getElementById('list').innerHTML= items.length? items.map(x=>'<div class="item">'+x+'</div>').join('') : 'لسه مفيش حاجة';
+localStorage.setItem('points',points);localStorage.setItem('total',total);localStorage.setItem('items',JSON.stringify(items));
+}
+function saveUser(){let n=document.getElementById('username').value; if(!n){alert('اكتب اسمك الأول');return;} localStorage.setItem('username',n); document.getElementById('showName').innerText=n; alert('اتحفظ يا '+n);}
+function addItem(){
+let n=document.getElementById('name').value; let t=document.getElementById('type').value; let w=parseFloat(document.getElementById('weight').value);
+if(!n||!w){alert('اكتب الاسم والوزن');return;}
+let p=w*10; points+=p; total+=w; items.push(n+' | '+t+' | '+w+' كجم | +'+p+' نقطة'); render();
+document.getElementById('name').value='';document.getElementById('weight').value='';
+}
+function redeem(x){ if(points>=x){points-=x; render(); document.getElementById('msg').innerText='تم الاستبدال! باقي معاك '+points+' نقطة';} else{document.getElementById('msg').innerText='نقاطك مش كفاية، محتاج '+x;}}
+function startScan(){
+document.getElementById('reader').style.display='block';
+let qr=new Html5Qrcode("reader");
+qr.start({facingMode:"environment"},{fps:10,qrbox:250},
+(code)=>{ document.getElementById('scanResult').innerText='تم مسح الباركود: '+code; document.getElementById('name').value='منتج باركود: '+code; qr.stop(); document.getElementById('reader').style.display='none';},
+(err)=>{}).catch(e=>{alert('اسمح للكاميرا من المتصفح، أو اكتب يدوي');});
+}
+render();
+</script>
+</body>
+</html>
